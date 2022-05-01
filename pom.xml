@@ -24,6 +24,12 @@
     <maven.version>3.3.9</maven.version>
   </properties>
 
+  <scm>
+    <connection>scm:git:https://github.com/jetty-project/tck-extract-tests-maven-plugin.git</connection>
+    <developerConnection>scm:git:https://github.com/jetty-project/tck-extract-tests-maven-plugin.git</developerConnection>
+    <url>https://github.com/jetty-project/tck-extract-tests-maven-plugin.git</url>
+  </scm>
+
   <distributionManagement>
     <repository>
       <id>oss.sonatype.org</id>
