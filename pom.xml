@@ -233,9 +233,4 @@
     </profile>
   </profiles>
 
-  <scm>
-    <connection>scm:svn:http://svn.sonatype.org/spice/tags/tck-extract-tests-maven-plugin-1.0.0</connection>
-    <developerConnection>scm:svn:https://svn.sonatype.org/spice/tags/tck-extract-tests-maven-plugin-1.0.0</developerConnection>
-    <url>http://svn.sonatype.org/spice/tags/tck-extract-tests-maven-plugin-1.0.0</url>
-  </scm>
 </project>
