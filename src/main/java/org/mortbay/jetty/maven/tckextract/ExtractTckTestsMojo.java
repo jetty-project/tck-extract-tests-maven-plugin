@@ -21,10 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 @Mojo( name = "extract-tck-tests", defaultPhase = LifecyclePhase.PROCESS_SOURCES, requiresDependencyResolution = ResolutionScope.TEST)
 public class ExtractTckTestsMojo extends AbstractMojo {
@@ -59,18 +62,33 @@ public class ExtractTckTestsMojo extends AbstractMojo {
 
         try {
 
-//            sourceRoot.parseParallelized(new SourceRoot.Callback() {
-//                @Override
-//                public Result process(Path localPath, Path absolutePath, ParseResult<CompilationUnit> result) {
-//                    return null;
-//                }
-//            });
 
             List<ParseResult<CompilationUnit>> parseResults = sourceRoot.tryToParse( "");
-            List<String> classNameMethods = new ArrayList<>();
+            Set<String> classNameMethods = new TreeSet<>();
             for (ParseResult<CompilationUnit> parseResult : parseResults) {
+
                 CompilationUnit cu = parseResult.getResult().get();
                 String fqcn = cu.getPackageDeclaration().get().getNameAsString() + "." + cu.getPrimaryType().get().getName();
+                
+                if (!parseResult.getCommentsCollection().isEmpty()) {
+                    List<String> methodNames =
+                            parseResult.getCommentsCollection().get().getBlockComments()
+                                    .stream().map(blockComment -> {
+                                        // parsing comment block....
+                                        List<String> methods =
+                                                Arrays.asList(blockComment.getContent().split(System.lineSeparator()))
+                                                        .stream().filter(s -> StringUtils.contains(s, TEST_NAME_TAG))
+                                                        .map(s -> StringUtils.substringAfter(s, TEST_NAME_TAG))
+                                                        .collect(Collectors.toList());
+                                        return methods.isEmpty()? "" : methods.get(0);
+                                    })
+                                    .collect(Collectors.toList());
+
+                    methodNames.stream()
+                            .filter(s -> StringUtils.isNotEmpty(s))
+                            .forEach(s -> classNameMethods.add(fqcn + "#" + StringUtils.trim(s)));;
+                }
+
                 cu.getChildNodes().stream()
                         .filter(node -> !node.getOrphanComments().isEmpty())
                         .map(node -> node.getOrphanComments())
@@ -83,10 +101,9 @@ public class ExtractTckTestsMojo extends AbstractMojo {
                         }));
 
             }
-            Collections.sort(classNameMethods);
             Files.write(tckTestsFile.toPath(), classNameMethods, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
 
-
+            getLog().info("Found " + classNameMethods.size() + " tests");
             getLog().debug("end");
         } catch (IOException e) {
             throw new MojoExecutionException(e.getMessage(), e);
