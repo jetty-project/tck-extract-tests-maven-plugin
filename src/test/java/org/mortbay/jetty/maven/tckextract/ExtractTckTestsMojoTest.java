@@ -12,25 +12,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-public class MyMojoTest
+public class ExtractTckTestsMojoTest
 {
     @Rule
-    public MojoRule rule = new MojoRule()
-    {
-        @Override
-        protected void before() throws Throwable 
-        {
-        }
+    public MojoRule rule = new MojoRule();
 
-        @Override
-        protected void after()
-        {
-        }
-    };
-
-    /**
-     * @throws Exception if any
-     */
     @Test
     public void testSomething()
             throws Exception
@@ -39,14 +25,14 @@ public class MyMojoTest
         assertNotNull( pom );
         assertTrue( pom.exists() );
 
-        ExtractTckTests myMojo = ( ExtractTckTests ) rule.lookupConfiguredMojo( pom, "extract-tck-tests" );
+        ExtractTckTestsMojo myMojo = (ExtractTckTestsMojo) rule.lookupConfiguredMojo( pom, "extract-tck-tests" );
         assertNotNull( myMojo );
         myMojo.execute();
 
         Path tckTests = Paths.get("target/test-classes/project-to-test/target/tck-test.txt");
         assertTrue(Files.exists(tckTests));
         List<String> lines = Files.readAllLines(tckTests);
-        assertEquals(4, lines.size());
+        assertEquals(8, lines.size());
     }
 
 }
