@@ -21,12 +21,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Mojo( name = "extract-tck-tests", defaultPhase = LifecyclePhase.PROCESS_SOURCES, requiresDependencyResolution = ResolutionScope.TEST)
-public class ExtractTckTests extends AbstractMojo {
+public class ExtractTckTestsMojo extends AbstractMojo {
 
     @Parameter(defaultValue = "${project}", readonly = true)
     protected MavenProject project;
@@ -54,33 +55,37 @@ public class ExtractTckTests extends AbstractMojo {
 
         // TODO iterate for all source roots
         SourceRoot sourceRoot = new SourceRoot(Paths.get(project.getCompileSourceRoots().get(0)));
-        sourceRoot.getParserConfiguration().setLanguageLevel( ParserConfiguration.LanguageLevel.JAVA_11 );
+        sourceRoot.getParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_11);
 
         try {
-            List<ParseResult<CompilationUnit>> parseResults = sourceRoot.tryToParse( "" );
+
+//            sourceRoot.parseParallelized(new SourceRoot.Callback() {
+//                @Override
+//                public Result process(Path localPath, Path absolutePath, ParseResult<CompilationUnit> result) {
+//                    return null;
+//                }
+//            });
+
+            List<ParseResult<CompilationUnit>> parseResults = sourceRoot.tryToParse( "");
+            List<String> classNameMethods = new ArrayList<>();
             for (ParseResult<CompilationUnit> parseResult : parseResults) {
-                if (!parseResult.getCommentsCollection().isEmpty()) {
-                    List<String> methodNames =
-                            parseResult.getCommentsCollection().get().getBlockComments()
-                            .stream().map(blockComment -> {
-                                // parsing comment block....
-                                    List<String> methods =
-                                            Arrays.asList(blockComment.getContent().split(System.lineSeparator()))
-                                            .stream().filter(s -> StringUtils.contains(s, TEST_NAME_TAG))
-                                            .map(s -> StringUtils.substringAfter(s, TEST_NAME_TAG))
-                                            .collect(Collectors.toList());
-                                    return methods.isEmpty()? "" : methods.get(0);
-                                })
-                            .collect(Collectors.toList());
-                    CompilationUnit cu = parseResult.getResult().get();
-                    String fqcn = cu.getPackageDeclaration().get().getNameAsString() + "." + cu.getPrimaryType().get().getName();
-                    List<String> classNameMethods = methodNames.stream()
-                            .filter(s -> StringUtils.isNotEmpty(s))
-                            .map(s -> fqcn + "#" + StringUtils.trim(s))
-                            .collect(Collectors.toList());
-                    Files.write(tckTestsFile.toPath(), classNameMethods, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
-                }
+                CompilationUnit cu = parseResult.getResult().get();
+                String fqcn = cu.getPackageDeclaration().get().getNameAsString() + "." + cu.getPrimaryType().get().getName();
+                cu.getChildNodes().stream()
+                        .filter(node -> !node.getOrphanComments().isEmpty())
+                        .map(node -> node.getOrphanComments())
+                        .forEach(comments -> comments.stream().forEach(comment -> {
+                            // parsing comment block....
+                            Arrays.asList(comment.getContent().split(System.lineSeparator()))
+                                    .stream().filter(s -> StringUtils.contains(s, TEST_NAME_TAG))
+                                    .map(s -> StringUtils.substringAfter(s, TEST_NAME_TAG))
+                                    .forEach(s -> classNameMethods.add(fqcn + "#" + StringUtils.trim(s)));
+                        }));
+
             }
+            Collections.sort(classNameMethods);
+            Files.write(tckTestsFile.toPath(), classNameMethods, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+
 
             getLog().debug("end");
         } catch (IOException e) {
