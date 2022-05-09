@@ -69,7 +69,7 @@ public class ExtractTckTestsMojo extends AbstractMojo {
 
                 CompilationUnit cu = parseResult.getResult().get();
                 String fqcn = cu.getPackageDeclaration().get().getNameAsString() + "." + cu.getPrimaryType().get().getName();
-                
+
                 if (!parseResult.getCommentsCollection().isEmpty()) {
                     List<String> methodNames =
                             parseResult.getCommentsCollection().get().getBlockComments()
