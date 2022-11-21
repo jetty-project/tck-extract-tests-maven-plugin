@@ -33,6 +33,15 @@ public class SomeTestFoo {
      */
 
     /**
+     * @testName: testIt
+     *
+     * @assertion_ids: Servlet:JAVADOC:485
+     *
+     * @test_Strategy: just do this
+     *
+     */
+
+    /**
      * @testName: testItFoo
      *
      * @assertion_ids: Servlet:JAVADOC:485
@@ -40,6 +49,20 @@ public class SomeTestFoo {
      * @test_Strategy: just do this
      *
      */
+
+    /**
+     * @testName: testItReally
+     *
+     * @assertion_ids: Servlet:JAVADOC:47i
+     *
+     * @test_Strategy: just do this
+     *
+     */
+    @Test
+    public void testItReally() throws Exception {
+        // not much really
+    }
+
 
     @Test
     public void testIt() throws Exception {

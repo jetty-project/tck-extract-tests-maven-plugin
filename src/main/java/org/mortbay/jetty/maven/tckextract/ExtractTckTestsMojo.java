@@ -21,6 +21,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -43,6 +44,12 @@ public class ExtractTckTestsMojo extends AbstractMojo {
     @Parameter( defaultValue = "${project.build.directory}/tck-test.txt", required = true)
     private File tckTestsFile;
 
+    @Parameter( defaultValue = "false", property = "tck.addTestMethod")
+    protected boolean addTestMethod;
+
+    @Parameter( defaultValue = "false", property = "tck.printMissingClassesMethods")
+    protected boolean printMissingClassesMethods;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
 
@@ -62,11 +69,12 @@ public class ExtractTckTestsMojo extends AbstractMojo {
 
         try {
 
-
             List<ParseResult<CompilationUnit>> parseResults = sourceRoot.tryToParse( "");
             Set<String> classNameMethods = new TreeSet<>();
-            for (ParseResult<CompilationUnit> parseResult : parseResults) {
+            Set<String> missingClassNameMethods = new TreeSet<>();
 
+            for (ParseResult<CompilationUnit> parseResult : parseResults) {
+                Set<String> currentClassMethods = new TreeSet<>();
                 CompilationUnit cu = parseResult.getResult().get();
                 String fqcn = cu.getPackageDeclaration().get().getNameAsString() + "." + cu.getPrimaryType().get().getName();
 
@@ -83,10 +91,9 @@ public class ExtractTckTestsMojo extends AbstractMojo {
                                         return methods.isEmpty()? "" : methods.get(0);
                                     })
                                     .collect(Collectors.toList());
-
                     methodNames.stream()
                             .filter(s -> StringUtils.isNotEmpty(s))
-                            .forEach(s -> classNameMethods.add(fqcn + "#" + StringUtils.trim(s)));;
+                            .forEach(s -> currentClassMethods.add(fqcn + "#" + StringUtils.trim(s)));;
                 }
 
                 cu.getChildNodes().stream()
@@ -97,14 +104,27 @@ public class ExtractTckTestsMojo extends AbstractMojo {
                             Arrays.asList(comment.getContent().split(System.lineSeparator()))
                                     .stream().filter(s -> StringUtils.contains(s, TEST_NAME_TAG))
                                     .map(s -> StringUtils.substringAfter(s, TEST_NAME_TAG))
-                                    .forEach(s -> classNameMethods.add(fqcn + "#" + StringUtils.trim(s)));
+                                    .forEach(s -> currentClassMethods.add(fqcn + "#" + StringUtils.trim(s)));
                         }));
+
+                currentClassMethods.stream().forEach(s -> {
+                    String methodName = StringUtils.substringAfter(s, "#");
+                    if (cu.getPrimaryType().get().getMethodsByName(methodName).isEmpty()) {
+                        missingClassNameMethods.add(fqcn + "#" + methodName);
+                    }
+                });
+
+                classNameMethods.addAll(currentClassMethods);
 
             }
             Files.write(tckTestsFile.toPath(), classNameMethods, StandardCharsets.UTF_8, StandardOpenOption.APPEND);
 
             getLog().info("Found " + classNameMethods.size() + " tests");
-            getLog().debug("end");
+            getLog().info(" Found missing methods: " + missingClassNameMethods.size());
+            if (printMissingClassesMethods) {
+                getLog().info("missingClassNameMethods: " +
+                        missingClassNameMethods.stream().collect(Collectors.joining(System.lineSeparator())));
+            }
         } catch (IOException e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }

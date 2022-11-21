@@ -40,7 +40,6 @@ public class SomeTest {
      * @test_Strategy: just do this
      *
      */
-
     @Test
     public void testIt() throws Exception {
         // not much really

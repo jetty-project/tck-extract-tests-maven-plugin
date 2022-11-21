@@ -18,7 +18,7 @@ public class ExtractTckTestsMojoTest
     public MojoRule rule = new MojoRule();
 
     @Test
-    public void testSomething()
+    public void testCounting()
             throws Exception
     {
         File pom = new File( "target/test-classes/project-to-test/" );
@@ -32,7 +32,23 @@ public class ExtractTckTestsMojoTest
         Path tckTests = Paths.get("target/test-classes/project-to-test/target/tck-test.txt");
         assertTrue(Files.exists(tckTests));
         List<String> lines = Files.readAllLines(tckTests);
-        assertEquals(8, lines.size());
+        assertEquals(9, lines.size());
+    }
+
+
+    @Test
+    public void testModify()
+            throws Exception
+    {
+        File pom = new File( "target/test-classes/project-to-test/" );
+        assertNotNull( pom );
+        assertTrue( pom.exists() );
+
+        ExtractTckTestsMojo myMojo = (ExtractTckTestsMojo) rule.lookupConfiguredMojo( pom, "extract-tck-tests" );
+        myMojo.addTestMethod = true;
+        assertNotNull( myMojo );
+        myMojo.execute();
+
     }
 
 }
