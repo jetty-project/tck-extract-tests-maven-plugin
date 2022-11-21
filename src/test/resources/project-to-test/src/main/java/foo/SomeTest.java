@@ -1,7 +1,5 @@
 package foo;
 
-import org.junit.Test;
-
 public class SomeTest {
 
     /*

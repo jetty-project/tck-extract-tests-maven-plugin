@@ -4,6 +4,8 @@ package org.mortbay.jetty.maven.tckextract;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.utils.SourceRoot;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.maven.plugin.AbstractMojo;
@@ -75,6 +77,7 @@ public class ExtractTckTestsMojo extends AbstractMojo {
 
             for (ParseResult<CompilationUnit> parseResult : parseResults) {
                 Set<String> currentClassMethods = new TreeSet<>();
+                Set<String> currentMissingClassMethods = new TreeSet<>();
                 CompilationUnit cu = parseResult.getResult().get();
                 String fqcn = cu.getPackageDeclaration().get().getNameAsString() + "." + cu.getPrimaryType().get().getName();
 
@@ -109,11 +112,30 @@ public class ExtractTckTestsMojo extends AbstractMojo {
 
                 currentClassMethods.stream().forEach(s -> {
                     String methodName = StringUtils.substringAfter(s, "#");
-                    if (cu.getPrimaryType().get().getMethodsByName(methodName).isEmpty()) {
-                        missingClassNameMethods.add(fqcn + "#" + methodName);
+                    ClassOrInterfaceDeclaration clazz = cu.getClassByName(cu.getPrimaryType().get().getName().toString()).get();
+                    if (clazz.getMethodsByName(methodName).isEmpty()) {
+                        currentMissingClassMethods.add(fqcn + "#" + methodName);
+                        if (addTestMethod) {
+                            BlockStmt blockStmt = new BlockStmt();
+                            blockStmt.addStatement("super." + methodName + "();");
+                            clazz.addMethod(methodName)
+                                    .addAnnotation("Test")
+                                    .setBody(blockStmt)
+                                    .addThrownException(Exception.class)
+                                    .setPublic(true);
+                        }
                     }
                 });
-
+                missingClassNameMethods.addAll(currentMissingClassMethods);
+                if(!currentMissingClassMethods.isEmpty() && addTestMethod) {
+                    // we verify if @Test is here as import
+                    if (!cu.getImports().stream().anyMatch(importDeclaration -> "org.junit.Test".equals(importDeclaration.getName().toString()))) {
+                        cu.addImport("org.junit.jupiter.api.Test");
+                    }
+                }
+                if (!currentMissingClassMethods.isEmpty()) {
+                    cu.getStorage().get().save();
+                }
                 classNameMethods.addAll(currentClassMethods);
 
             }
@@ -124,6 +146,9 @@ public class ExtractTckTestsMojo extends AbstractMojo {
             if (printMissingClassesMethods) {
                 getLog().info("missingClassNameMethods: " +
                         missingClassNameMethods.stream().collect(Collectors.joining(System.lineSeparator())));
+            }
+            if (addTestMethod && !missingClassNameMethods.isEmpty()) {
+
             }
         } catch (IOException e) {
             throw new MojoExecutionException(e.getMessage(), e);
